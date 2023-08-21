@@ -1,72 +1,54 @@
-import { useState, useEffect } from 'react';
-import { Section } from "./Section/Section";
-import { Filter } from "./Filter/Filter";
-import { nanoid } from 'nanoid';
-import { ContactForm } from "./ContactForm/ContactForm";
-import { ContactList } from "./ContactList/ContactList";
-
-
+import React, { useState } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { Section } from './Section/Section';
+import { Filter } from './Filter/Filter';
+import { ContactForm } from './ContactForm/ContactForm';
+import { ContactList } from './ContactList/ContactList';
+import { addContact, deleteContact, updateFilter } from '../redux/contactsSlice';
+import { nanoid } from '@reduxjs/toolkit';
 
 export const App = () => {
-  const [contacts, setContacts] = useState([]);
-  const [filter, setFilter] = useState('');
-  
+  const contacts = useSelector(state => state.contacts.contacts);
+  const [duplicateContactMessage, setDuplicateContactMessage] = useState('');
+  const filter = useSelector(state => state.contacts.filter);
+  const dispatch = useDispatch();
 
-  useEffect(() => {
-    const localData = localStorage.getItem('contacts');
-    const dataParse = JSON.parse(localData);
-    if (localData && dataParse.length > 0) {
-      setContacts(dataParse);
-    }
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('contacts', JSON.stringify(contacts));
-  }, [contacts]);
+ const filteredContacts = contacts.filter(contact =>
+  contact.name && contact.name.toLowerCase().includes(filter.toLowerCase())
+);
 
 
-  const addContact = (name, number) => {
-    const newContact = {
-      id: nanoid(),
-      name,
-      number,
-    };
+  const addContactHandler = ({ name, number }) => {
+    const existingContact = contacts.find(contact => contact.name && contact.name.toLowerCase() === name.toLowerCase());
 
-    if (findContact(name)) {
-      return alert(`${name} is already in contacts`);
+    if (existingContact) {
+      setDuplicateContactMessage(`${name} is already in contacts`);
+      return;
     }
 
-    setContacts((prevContacts) => (
-      [...prevContacts, newContact]));
-  }
-
-
-  const filterChange = (e) => {
-    setFilter(e.target.value);
+    dispatch(addContact({ id: nanoid(), name, number }));
+    setDuplicateContactMessage(''); 
   };
 
-  const filterContacts = () => contacts.filter(contact => contact.name.toLowerCase().includes(filter.toLowerCase()))
-
-  const findContact = name => contacts.find(contact => contact.name.toLowerCase() === name.toLowerCase());
-
-  const onDelete = (contactId) => {
-    setContacts((prevContacts) => prevContacts.filter((contact) => contact.id !== contactId));
+  const filterChangeHandler = e => {
+    dispatch(updateFilter(e.target.value));
   };
 
-  const filteredContacts = filterContacts();
+  const onDelete = contactId => {
+    dispatch(deleteContact(contactId));
+  };
 
   return (
     <>
       <Section title="Phonebook">
-        <ContactForm onSubmit={addContact} />
+        <ContactForm onSubmit={addContactHandler} />
+        {duplicateContactMessage && alert(`${duplicateContactMessage}`)}
       </Section>
+
       <Section title="Contacts">
-        <Filter
-          filter={filter}
-          handleChange={filterChange}
-        />
+        <Filter filter={filter} handleChange={filterChangeHandler} />
         <ContactList contacts={filteredContacts} onDelete={onDelete} />
       </Section>
     </>
   );
-}
+};
